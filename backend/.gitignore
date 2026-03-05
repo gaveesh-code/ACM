@@ -1,0 +1,8 @@
+backend/venv/
+frontend/node_modules/
+backend/database/acm.db
+__pycache__/
+*.pyc
+.env
+frontend/dist/
+*.db
