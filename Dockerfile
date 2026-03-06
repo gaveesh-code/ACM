@@ -27,8 +27,10 @@ RUN npm run build
 WORKDIR /app
 COPY data/ ./data/
 RUN cp -r /app/frontend/dist /app/backend/static
-COPY start.sh .
-RUN chmod +x start.sh
+
+# Write start.sh directly to avoid Windows CRLF line ending issues
+RUN printf '#!/bin/bash\ncd /app/backend\npython3 -m uvicorn main:app --host 0.0.0.0 --port 8000\n' > start.sh \
+    && chmod +x start.sh
 
 EXPOSE 8000
 CMD ["./start.sh"]
