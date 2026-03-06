@@ -3,7 +3,6 @@ import axios from "axios";
 
 const API = "http://localhost:8000";
 
-// ─── Color palette ───────────────────────────────────────────────────────────
 const C = {
   bg:       "#090c10",
   panel:    "#0d1117",
@@ -21,7 +20,6 @@ const C = {
   grid:     "rgba(255,255,255,0.03)",
 };
 
-// ─── Utility ─────────────────────────────────────────────────────────────────
 const statusColor = (s) =>
   s === "NOMINAL" ? C.green : s === "EOL" ? C.red : s === "OUT_OF_SLOT" ? C.yellow : C.amber;
 
@@ -36,7 +34,6 @@ function usePoll(fn, ms) {
   }, []);
 }
 
-// ─── Scanline overlay ────────────────────────────────────────────────────────
 function Scanlines() {
   return (
     <div style={{
@@ -46,20 +43,15 @@ function Scanlines() {
   );
 }
 
-// ─── Panel ───────────────────────────────────────────────────────────────────
 function Panel({ title, accent = C.amber, children, style = {}, tag }) {
   return (
     <div style={{
-      background: C.panel,
-      border: `1px solid ${C.border}`,
-      borderTop: `2px solid ${accent}`,
-      display: "flex", flexDirection: "column",
-      ...style,
+      background: C.panel, border: `1px solid ${C.border}`,
+      borderTop: `2px solid ${accent}`, display: "flex", flexDirection: "column", ...style,
     }}>
       <div style={{
         padding: "6px 14px", display: "flex", alignItems: "center",
-        justifyContent: "space-between",
-        borderBottom: `1px solid ${C.border}`,
+        justifyContent: "space-between", borderBottom: `1px solid ${C.border}`,
         background: "rgba(0,0,0,0.3)",
       }}>
         <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, letterSpacing: 2, color: accent, textTransform: "uppercase" }}>
@@ -72,7 +64,6 @@ function Panel({ title, accent = C.amber, children, style = {}, tag }) {
   );
 }
 
-// ─── Stat chip ───────────────────────────────────────────────────────────────
 function Stat({ label, value, color = C.amber, blink }) {
   const [vis, setVis] = useState(true);
   useEffect(() => {
@@ -84,36 +75,27 @@ function Stat({ label, value, color = C.amber, blink }) {
     <div style={{ textAlign: "center", padding: "10px 16px" }}>
       <div style={{
         fontFamily: "'Orbitron', sans-serif", fontSize: 26, fontWeight: 700,
-        color: vis ? color : "transparent",
-        textShadow: `0 0 20px ${color}55`,
-        transition: "color 0.1s",
+        color: vis ? color : "transparent", textShadow: `0 0 20px ${color}55`, transition: "color 0.1s",
       }}>{value}</div>
       <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: C.textDim, letterSpacing: 2, marginTop: 2 }}>{label}</div>
     </div>
   );
 }
 
-// ─── World Map (Mercator Canvas) ─────────────────────────────────────────────
+// ─── World Map ────────────────────────────────────────────────────────────────
 function WorldMap({ satellites, debris }) {
   const canvasRef = useRef();
-
-  const project = (lat, lon, W, H) => {
-    const x = ((lon + 180) / 360) * W;
-    const y = ((90 - lat) / 180) * H;
-    return [x, y];
-  };
+  const project = (lat, lon, W, H) => [((lon + 180) / 360) * W, ((90 - lat) / 180) * H];
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     const W = canvas.width, H = canvas.height;
-
     ctx.clearRect(0, 0, W, H);
 
-    // Grid lines
-    ctx.strokeStyle = C.grid;
-    ctx.lineWidth = 0.5;
+    // Grid
+    ctx.strokeStyle = C.grid; ctx.lineWidth = 0.5;
     for (let lat = -90; lat <= 90; lat += 30) {
       const [, y] = project(lat, 0, W, H);
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
@@ -123,75 +105,132 @@ function WorldMap({ satellites, debris }) {
       ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
     }
 
-    // Equator highlight
-    ctx.strokeStyle = "rgba(240,165,0,0.15)";
-    ctx.lineWidth = 1;
+    // Equator
+    ctx.strokeStyle = "rgba(240,165,0,0.15)"; ctx.lineWidth = 1;
     const [, eqY] = project(0, 0, W, H);
     ctx.beginPath(); ctx.moveTo(0, eqY); ctx.lineTo(W, eqY); ctx.stroke();
 
     // Debris
-    if (debris) {
-      debris.forEach(d => {
-        const [x, y] = project(d[1], d[2], W, H);
-        ctx.beginPath();
-        ctx.arc(x, y, 1, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(255,100,100,0.4)";
-        ctx.fill();
-      });
-    }
+    debris?.forEach(d => {
+      const [x, y] = project(d[1], d[2], W, H);
+      ctx.beginPath(); ctx.arc(x, y, 1, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(255,100,100,0.4)"; ctx.fill();
+    });
 
     // Satellites
-    if (satellites) {
-      satellites.forEach(sat => {
-        const [x, y] = project(sat.lat, sat.lon, W, H);
-        const color = statusColor(sat.status);
+    satellites?.forEach(sat => {
+      const [x, y] = project(sat.lat, sat.lon, W, H);
+      const color = statusColor(sat.status);
+      const grd = ctx.createRadialGradient(x, y, 0, x, y, 8);
+      grd.addColorStop(0, color + "aa"); grd.addColorStop(1, "transparent");
+      ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2); ctx.fillStyle = grd; ctx.fill();
+      ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
+      ctx.fillStyle = color; ctx.font = "8px 'Share Tech Mono', monospace";
+      ctx.fillText(sat.id.replace("SAT-", ""), x + 5, y - 4);
+    });
+
+    // Ground stations
+    const gs = [
+      [13.03, 77.52, "BLR"], [78.23, 15.41, "SVL"], [35.43, -116.89, "GLD"],
+      [-53.15, -70.92, "PTA"], [28.55, 77.19, "DEL"], [-77.85, 166.67, "MCM"],
+    ];
+    gs.forEach(([lat, lon, name]) => {
+      const [x, y] = project(lat, lon, W, H);
+      ctx.strokeStyle = C.blue + "aa"; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x - 5, y); ctx.lineTo(x + 5, y);
+      ctx.moveTo(x, y - 5); ctx.lineTo(x, y + 5); ctx.stroke();
+      ctx.fillStyle = C.blue; ctx.font = "7px 'Share Tech Mono', monospace";
+      ctx.fillText(name, x + 6, y + 3);
+    });
+  }, [satellites, debris]);
+
+  return <canvas ref={canvasRef} width={900} height={380} style={{ width: "100%", height: "100%", display: "block" }} />;
+}
+
+// ─── Bullseye Conjunction Chart ───────────────────────────────────────────────
+function BullseyeChart({ cdms, selectedSat }) {
+  const canvasRef = useRef();
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const W = canvas.width, H = canvas.height;
+    const cx = W / 2, cy = H / 2;
+    const maxR = Math.min(cx, cy) - 20;
+
+    ctx.clearRect(0, 0, W, H);
+
+    // Rings: CRITICAL=red(0.1km), WARNING=yellow(5km), CAUTION=green(10km)
+    const rings = [
+      { r: maxR,       color: C.green  + "33", label: "10km",   labelColor: C.green },
+      { r: maxR * 0.5, color: C.yellow + "44", label: "5km",    labelColor: C.yellow },
+      { r: maxR * 0.1, color: C.red    + "66", label: "100m",   labelColor: C.red },
+    ];
+
+    rings.forEach(({ r, color, label, labelColor }) => {
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.strokeStyle = labelColor + "55"; ctx.lineWidth = 1; ctx.stroke();
+      ctx.fillStyle = color; ctx.fill();
+      ctx.fillStyle = labelColor; ctx.font = "8px 'Share Tech Mono', monospace";
+      ctx.fillText(label, cx + r - 26, cy - 4);
+    });
+
+    // Cross hairs
+    ctx.strokeStyle = C.textDim + "66"; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(cx, cy - maxR); ctx.lineTo(cx, cy + maxR); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx - maxR, cy); ctx.lineTo(cx + maxR, cy); ctx.stroke();
+
+    // Satellite at center
+    ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+    ctx.fillStyle = C.blue; ctx.fill();
+    ctx.fillStyle = C.blue; ctx.font = "9px 'Share Tech Mono', monospace";
+    ctx.fillText(selectedSat || "SAT", cx + 7, cy - 7);
+
+    // Plot debris by miss distance and TCA angle
+    if (cdms && cdms.length > 0) {
+      const maxDist = 10; // km
+      cdms.slice(0, 20).forEach((cdm, i) => {
+        const dist = Math.min(cdm.miss_distance_km, maxDist);
+        const angle = (i / Math.max(cdms.length, 1)) * Math.PI * 2 - Math.PI / 2;
+        const r = (dist / maxDist) * maxR;
+        const x = cx + r * Math.cos(angle);
+        const y = cy + r * Math.sin(angle);
+        const color = severityColor(cdm.severity);
 
         // Glow
-        const grd = ctx.createRadialGradient(x, y, 0, x, y, 8);
-        grd.addColorStop(0, color + "aa");
-        grd.addColorStop(1, "transparent");
-        ctx.beginPath(); ctx.arc(x, y, 8, 0, Math.PI * 2);
-        ctx.fillStyle = grd; ctx.fill();
+        const grd = ctx.createRadialGradient(x, y, 0, x, y, 6);
+        grd.addColorStop(0, color + "cc"); grd.addColorStop(1, "transparent");
+        ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fillStyle = grd; ctx.fill();
 
         // Dot
         ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2);
         ctx.fillStyle = color; ctx.fill();
 
-        // Label
-        ctx.fillStyle = color;
-        ctx.font = "8px 'Share Tech Mono', monospace";
-        ctx.fillText(sat.id.replace("SAT-", ""), x + 5, y - 4);
+        // Label for close ones
+        if (dist < 2) {
+          ctx.fillStyle = color; ctx.font = "7px 'Share Tech Mono', monospace";
+          ctx.fillText(cdm.debris_id?.slice(-4), x + 4, y - 4);
+        }
       });
     }
 
-    // Ground stations
-    const gs = [
-      [13.03, 77.52, "BLR"], [78.23, 15.41, "SVL"],
-      [35.43, -116.89, "GLD"], [-53.15, -70.92, "PTA"],
-      [28.55, 77.19, "DEL"], [-77.85, 166.67, "MCM"],
-    ];
-    gs.forEach(([lat, lon, name]) => {
-      const [x, y] = project(lat, lon, W, H);
-      ctx.strokeStyle = C.blue + "aa";
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(x - 5, y); ctx.lineTo(x + 5, y);
-      ctx.moveTo(x, y - 5); ctx.lineTo(x, y + 5);
-      ctx.stroke();
-      ctx.fillStyle = C.blue;
-      ctx.font = "7px 'Share Tech Mono', monospace";
-      ctx.fillText(name, x + 6, y + 3);
-    });
-  }, [satellites, debris]);
+    // No data message
+    if (!cdms || cdms.length === 0) {
+      ctx.fillStyle = C.green + "88";
+      ctx.font = "10px 'Share Tech Mono', monospace";
+      ctx.textAlign = "center";
+      ctx.fillText("ALL CLEAR", cx, cy + maxR + 14);
+      ctx.textAlign = "left";
+    }
 
-  return (
-    <canvas ref={canvasRef} width={900} height={380}
-      style={{ width: "100%", height: "100%", display: "block" }} />
-  );
+  }, [cdms, selectedSat]);
+
+  return <canvas ref={canvasRef} width={280} height={280} style={{ width: "100%", height: "100%", display: "block" }} />;
 }
 
 // ─── Fuel Bar ─────────────────────────────────────────────────────────────────
-function FuelBar({ id, fuel_pct, status }) {
+function FuelBar({ id, fuel_pct }) {
   const color = fuel_pct > 50 ? C.green : fuel_pct > 20 ? C.yellow : C.red;
   return (
     <div style={{ marginBottom: 6, padding: "4px 12px" }}>
@@ -202,15 +241,14 @@ function FuelBar({ id, fuel_pct, status }) {
       <div style={{ height: 4, background: C.border, borderRadius: 2 }}>
         <div style={{
           height: "100%", width: `${fuel_pct}%`, borderRadius: 2,
-          background: color, boxShadow: `0 0 6px ${color}88`,
-          transition: "width 0.5s ease",
+          background: color, boxShadow: `0 0 6px ${color}88`, transition: "width 0.5s ease",
         }} />
       </div>
     </div>
   );
 }
 
-// ─── CDM Warning Row ─────────────────────────────────────────────────────────
+// ─── CDM Row ──────────────────────────────────────────────────────────────────
 function CDMRow({ cdm }) {
   const color = severityColor(cdm.severity);
   const [blink, setBlink] = useState(true);
@@ -219,7 +257,6 @@ function CDMRow({ cdm }) {
     const id = setInterval(() => setBlink(v => !v), 500);
     return () => clearInterval(id);
   }, []);
-
   return (
     <div style={{
       display: "grid", gridTemplateColumns: "1fr 1fr 80px 70px 80px",
@@ -227,31 +264,22 @@ function CDMRow({ cdm }) {
       background: cdm.severity === "CRITICAL" ? `${C.redDim}33` : "transparent",
       opacity: cdm.severity === "CRITICAL" ? (blink ? 1 : 0.6) : 1,
     }}>
-      {[cdm.satellite_id, cdm.debris_id,
-        `${cdm.tca_seconds?.toFixed(0)}s`,
-        `${cdm.miss_distance_km?.toFixed(3)}km`,
-        cdm.severity].map((val, i) => (
-          <span key={i} style={{
-            fontFamily: "'Share Tech Mono', monospace", fontSize: 9,
-            color: i === 4 ? color : C.text,
-          }}>{val}</span>
+      {[cdm.satellite_id, cdm.debris_id, `${cdm.tca_seconds?.toFixed(0)}s`, `${cdm.miss_distance_km?.toFixed(3)}km`, cdm.severity]
+        .map((val, i) => (
+          <span key={i} style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: i === 4 ? color : C.text }}>{val}</span>
         ))}
     </div>
   );
 }
 
-// ─── Maneuver Timeline ───────────────────────────────────────────────────────
+// ─── Maneuver Timeline ────────────────────────────────────────────────────────
 function ManeuverTimeline({ maneuvers }) {
   if (!maneuvers || maneuvers.length === 0)
     return <div style={{ padding: 16, fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: C.textDim, textAlign: "center" }}>NO SCHEDULED MANEUVERS</div>;
-
   return (
     <div style={{ padding: "8px 12px", overflowY: "auto", maxHeight: 180 }}>
       {maneuvers.map((m, i) => (
-        <div key={i} style={{
-          display: "flex", alignItems: "center", gap: 10,
-          padding: "5px 0", borderBottom: `1px solid ${C.border}`,
-        }}>
+        <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "5px 0", borderBottom: `1px solid ${C.border}` }}>
           <div style={{ width: 6, height: 6, borderRadius: "50%", background: C.amber, boxShadow: `0 0 6px ${C.amber}` }} />
           <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: C.amber, minWidth: 80 }}>{m.satellite_id}</span>
           <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: C.textDim, flex: 1 }}>{m.burn_id}</span>
@@ -268,44 +296,34 @@ function ManeuverTimeline({ maneuvers }) {
   );
 }
 
-// ─── Simulate Control ────────────────────────────────────────────────────────
-function SimControl({ onStep }) {
+// ─── Sim Control ──────────────────────────────────────────────────────────────
+function SimControl() {
   const [secs, setSecs] = useState(3600);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
-
   const step = async () => {
     setLoading(true);
     try {
       const res = await axios.post(`${API}/api/simulate/step`, { step_seconds: secs });
       setResult(res.data);
-    } catch (e) {
-      setResult({ status: "ERROR" });
-    }
+    } catch { setResult({ status: "ERROR" }); }
     setLoading(false);
   };
-
   return (
     <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 9, color: C.textDim }}>STEP (s)</span>
-        <input
-          type="number" value={secs}
-          onChange={e => setSecs(Number(e.target.value))}
-          style={{
-            background: C.bg, border: `1px solid ${C.border}`, color: C.amber,
-            fontFamily: "'Share Tech Mono', monospace", fontSize: 11,
-            padding: "3px 8px", width: 80, outline: "none", borderRadius: 2,
-          }}
-        />
+        <input type="number" value={secs} onChange={e => setSecs(Number(e.target.value))} style={{
+          background: C.bg, border: `1px solid ${C.border}`, color: C.amber,
+          fontFamily: "'Share Tech Mono', monospace", fontSize: 11,
+          padding: "3px 8px", width: 80, outline: "none", borderRadius: 2,
+        }} />
         <button onClick={step} disabled={loading} style={{
-          background: loading ? C.amberDim : C.amber, color: C.bg,
-          border: "none", padding: "5px 16px", cursor: loading ? "not-allowed" : "pointer",
+          background: loading ? C.amberDim : C.amber, color: C.bg, border: "none",
+          padding: "5px 16px", cursor: loading ? "not-allowed" : "pointer",
           fontFamily: "'Share Tech Mono', monospace", fontSize: 10, fontWeight: 700,
           letterSpacing: 1, borderRadius: 2,
-        }}>
-          {loading ? "RUNNING..." : "▶ EXECUTE"}
-        </button>
+        }}>{loading ? "RUNNING..." : "▶ EXECUTE"}</button>
       </div>
       {result && (
         <div style={{
@@ -326,71 +344,37 @@ function SimControl({ onStep }) {
 function TelemetryInjector() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
-
   const inject = async () => {
     setLoading(true);
     const now = new Date().toISOString();
     const objects = [];
-
-    // Generate 5 test satellites
     for (let i = 1; i <= 5; i++) {
       const angle = (i / 5) * 2 * Math.PI;
-      objects.push({
-        id: `SAT-Alpha-0${i}`,
-        type: "SATELLITE",
-        r: {
-          x: 7000 * Math.cos(angle),
-          y: 7000 * Math.sin(angle),
-          z: 500 * Math.sin(angle * 2),
-        },
-        v: {
-          x: -7.5 * Math.sin(angle),
-          y: 7.5 * Math.cos(angle),
-          z: 0.1,
-        },
-      });
+      objects.push({ id: `SAT-Alpha-0${i}`, type: "SATELLITE",
+        r: { x: 7000 * Math.cos(angle), y: 7000 * Math.sin(angle), z: 500 * Math.sin(angle * 2) },
+        v: { x: -7.5 * Math.sin(angle), y: 7.5 * Math.cos(angle), z: 0.1 } });
     }
-
-    // Generate 20 debris
     for (let i = 1; i <= 20; i++) {
       const angle = Math.random() * 2 * Math.PI;
       const r = 6800 + Math.random() * 400;
-      objects.push({
-        id: `DEB-${99400 + i}`,
-        type: "DEBRIS",
-        r: {
-          x: r * Math.cos(angle),
-          y: r * Math.sin(angle),
-          z: (Math.random() - 0.5) * 1000,
-        },
-        v: {
-          x: -(7.6 + Math.random() * 0.2) * Math.sin(angle),
-          y: (7.6 + Math.random() * 0.2) * Math.cos(angle),
-          z: (Math.random() - 0.5) * 0.5,
-        },
-      });
+      objects.push({ id: `DEB-${99400 + i}`, type: "DEBRIS",
+        r: { x: r * Math.cos(angle), y: r * Math.sin(angle), z: (Math.random() - 0.5) * 1000 },
+        v: { x: -(7.6 + Math.random() * 0.2) * Math.sin(angle), y: (7.6 + Math.random() * 0.2) * Math.cos(angle), z: (Math.random() - 0.5) * 0.5 } });
     }
-
     try {
       const res = await axios.post(`${API}/api/telemetry`, { timestamp: now, objects });
       setResult(res.data);
-    } catch (e) {
-      setResult({ status: "ERROR" });
-    }
+    } catch { setResult({ status: "ERROR" }); }
     setLoading(false);
   };
-
   return (
     <div style={{ padding: "10px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
       <button onClick={inject} disabled={loading} style={{
-        background: "transparent", color: C.green,
-        border: `1px solid ${C.green}`, padding: "6px 14px",
-        cursor: loading ? "not-allowed" : "pointer",
+        background: "transparent", color: C.green, border: `1px solid ${C.green}`,
+        padding: "6px 14px", cursor: loading ? "not-allowed" : "pointer",
         fontFamily: "'Share Tech Mono', monospace", fontSize: 10,
         letterSpacing: 1, borderRadius: 2, opacity: loading ? 0.5 : 1,
-      }}>
-        {loading ? "INJECTING..." : "⬆ INJECT TEST TELEMETRY"}
-      </button>
+      }}>{loading ? "INJECTING..." : "⬆ INJECT TEST TELEMETRY"}</button>
       {result && (
         <div style={{
           fontFamily: "'Share Tech Mono', monospace", fontSize: 9,
@@ -406,14 +390,10 @@ function TelemetryInjector() {
   );
 }
 
-// ─── Clock ───────────────────────────────────────────────────────────────────
+// ─── Clock ────────────────────────────────────────────────────────────────────
 function Clock({ simTime }) {
   const [now, setNow] = useState(new Date());
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
-
+  useEffect(() => { const id = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(id); }, []);
   return (
     <div style={{ display: "flex", gap: 24, alignItems: "center" }}>
       <div>
@@ -434,11 +414,12 @@ function Clock({ simTime }) {
   );
 }
 
-// ─── Main App ────────────────────────────────────────────────────────────────
+// ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [snapshot, setSnapshot] = useState(null);
   const [connected, setConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(null);
+  const [selectedSat, setSelectedSat] = useState(null);
 
   const fetchSnapshot = useCallback(async () => {
     try {
@@ -446,18 +427,21 @@ export default function App() {
       setSnapshot(res.data);
       setConnected(true);
       setLastUpdate(new Date());
-    } catch {
-      setConnected(false);
-    }
+    } catch { setConnected(false); }
   }, []);
 
   usePoll(fetchSnapshot, 2000);
 
   const stats = snapshot?.fleet_stats;
-  const sats = snapshot?.satellites || [];
+  const sats  = snapshot?.satellites || [];
   const debris = snapshot?.debris_cloud || [];
-  const cdms = snapshot?.cdm_warnings || [];
+  const cdms  = snapshot?.cdm_warnings || [];
   const timeline = snapshot?.maneuver_timeline || [];
+
+  // Filter CDMs for selected satellite (bullseye)
+  const bullseyeCdms = selectedSat
+    ? cdms.filter(c => c.satellite_id === selectedSat)
+    : cdms;
 
   return (
     <div style={{
@@ -468,7 +452,7 @@ export default function App() {
     }}>
       <Scanlines />
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div style={{
         padding: "10px 20px", borderBottom: `1px solid ${C.border}`,
         display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -477,30 +461,22 @@ export default function App() {
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <div style={{
-            width: 32, height: 32, borderRadius: "50%",
-            border: `2px solid ${C.amber}`,
+            width: 32, height: 32, borderRadius: "50%", border: `2px solid ${C.amber}`,
             display: "flex", alignItems: "center", justifyContent: "center",
             boxShadow: `0 0 16px ${C.amber}55`,
           }}>
             <span style={{ fontSize: 14 }}>⊕</span>
           </div>
           <div>
-            <div style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 14, color: C.amber, letterSpacing: 3 }}>
-              ORBITAL INSIGHT
-            </div>
-            <div style={{ fontSize: 8, color: C.textDim, letterSpacing: 2 }}>
-              AUTONOMOUS CONSTELLATION MANAGER v1.0
-            </div>
+            <div style={{ fontFamily: "'Orbitron', sans-serif", fontSize: 14, color: C.amber, letterSpacing: 3 }}>ORBITAL INSIGHT</div>
+            <div style={{ fontSize: 8, color: C.textDim, letterSpacing: 2 }}>AUTONOMOUS CONSTELLATION MANAGER v1.0</div>
           </div>
           <div style={{
             padding: "2px 10px", borderRadius: 2,
             background: connected ? C.greenDim : C.redDim,
             border: `1px solid ${connected ? C.green : C.red}`,
-            color: connected ? C.green : C.red,
-            fontSize: 8, letterSpacing: 2,
-          }}>
-            {connected ? "● ONLINE" : "○ OFFLINE"}
-          </div>
+            color: connected ? C.green : C.red, fontSize: 8, letterSpacing: 2,
+          }}>{connected ? "◉ ONLINE" : "○ OFFLINE"}</div>
         </div>
 
         <Clock simTime={snapshot?.timestamp} />
@@ -520,24 +496,24 @@ export default function App() {
         </div>
       </div>
 
-      {/* ── Main Grid ── */}
-      <div style={{ padding: 12, display: "grid", gap: 10, gridTemplateRows: "auto auto auto" }}>
+      {/* Main Grid */}
+      <div style={{ padding: 12, display: "grid", gap: 10 }}>
 
         {/* Row 1: Map */}
         <Panel title="Ground Track — Mercator Projection" tag="ECI → GEO CONVERTED" style={{ height: 420 }}>
           <WorldMap satellites={sats} debris={debris} />
         </Panel>
 
-        {/* Row 2: Stats + CDMs + Fuel */}
-        <div style={{ display: "grid", gridTemplateColumns: "260px 1fr 240px", gap: 10 }}>
+        {/* Row 2: Stats + CDMs + Bullseye */}
+        <div style={{ display: "grid", gridTemplateColumns: "260px 1fr 320px", gap: 10 }}>
 
           {/* Fleet Stats */}
           <Panel title="Fleet Status" accent={C.green}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", borderBottom: `1px solid ${C.border}` }}>
-              <Stat label="TOTAL SATS" value={stats?.total_satellites ?? "—"} color={C.blue} />
-              <Stat label="NOMINAL" value={stats?.nominal ?? "—"} color={C.green} />
+              <Stat label="TOTAL SATS"  value={stats?.total_satellites ?? "—"} color={C.blue} />
+              <Stat label="NOMINAL"     value={stats?.nominal ?? "—"} color={C.green} />
               <Stat label="OUT OF SLOT" value={stats?.out_of_slot ?? "—"} color={C.yellow} />
-              <Stat label="EOL" value={stats?.eol ?? "—"} color={C.red} />
+              <Stat label="EOL"         value={stats?.eol ?? "—"} color={C.red} />
             </div>
             <div style={{ padding: "8px 12px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
@@ -554,6 +530,11 @@ export default function App() {
               </div>
             </div>
             <TelemetryInjector />
+            <SimControl />
+            <div style={{ padding: "0 14px 8px" }}>
+              <div style={{ fontSize: 8, color: C.textDim, letterSpacing: 1 }}>LAST REFRESH</div>
+              <div style={{ fontSize: 9, color: C.blue, marginTop: 2 }}>{lastUpdate ? lastUpdate.toTimeString().slice(0, 8) : "—"}</div>
+            </div>
           </Panel>
 
           {/* CDM Warnings */}
@@ -567,45 +548,58 @@ export default function App() {
                 <span key={h} style={{ fontSize: 8, color: C.textDim, letterSpacing: 1 }}>{h}</span>
               ))}
             </div>
-            <div style={{ overflowY: "auto", maxHeight: 220 }}>
+            <div style={{ overflowY: "auto", maxHeight: 260 }}>
               {cdms.length === 0
                 ? <div style={{ padding: 16, fontSize: 9, color: C.textDim, textAlign: "center" }}>ALL CLEAR — NO CONJUNCTIONS DETECTED</div>
-                : cdms.map((c, i) => <CDMRow key={i} cdm={c} />)
+                : cdms.map((c, i) => (
+                  <div key={i} onClick={() => setSelectedSat(c.satellite_id)} style={{ cursor: "pointer" }}>
+                    <CDMRow cdm={c} />
+                  </div>
+                ))
               }
             </div>
           </Panel>
 
-          {/* Sim Control */}
-          <Panel title="Sim Control" accent={C.blue}>
-            <SimControl />
-            <div style={{ padding: "0 14px 8px" }}>
-              <div style={{ fontSize: 8, color: C.textDim, marginBottom: 6, letterSpacing: 1 }}>LAST REFRESH</div>
-              <div style={{ fontSize: 9, color: C.blue }}>
-                {lastUpdate ? lastUpdate.toTimeString().slice(0, 8) : "—"}
-              </div>
+          {/* Bullseye Chart */}
+          <Panel title="Conjunction Bullseye" accent={C.red} tag={selectedSat || "SELECT SAT"}>
+            <div style={{ padding: "6px 12px 2px", display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {sats.map(s => (
+                <button key={s.id} onClick={() => setSelectedSat(s.id === selectedSat ? null : s.id)} style={{
+                  background: selectedSat === s.id ? C.amber : "transparent",
+                  color: selectedSat === s.id ? C.bg : C.textDim,
+                  border: `1px solid ${selectedSat === s.id ? C.amber : C.border}`,
+                  padding: "2px 6px", fontSize: 7, cursor: "pointer", borderRadius: 2,
+                  fontFamily: "'Share Tech Mono', monospace", letterSpacing: 1,
+                }}>{s.id.replace("SAT-", "")}</button>
+              ))}
+            </div>
+            <div style={{ padding: "4px 12px" }}>
+              <BullseyeChart cdms={bullseyeCdms} selectedSat={selectedSat} />
+            </div>
+            <div style={{ padding: "0 12px 8px", display: "flex", gap: 12 }}>
+              {[["■", C.red, "CRITICAL"], ["■", C.yellow, "WARNING"], ["■", C.green, "CAUTION"]].map(([sym, col, label]) => (
+                <div key={label} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <span style={{ color: col, fontSize: 10 }}>{sym}</span>
+                  <span style={{ fontSize: 7, color: C.textDim, letterSpacing: 1 }}>{label}</span>
+                </div>
+              ))}
             </div>
           </Panel>
         </div>
 
-        {/* Row 3: Fuel gauges + Timeline */}
+        {/* Row 3: Fuel + Timeline */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-
-          {/* Fuel Heatmap */}
           <Panel title="Propellant Budget — Fleet Overview" accent={C.yellow}>
             <div style={{ overflowY: "auto", maxHeight: 200, paddingTop: 8 }}>
               {sats.length === 0
                 ? <div style={{ padding: 16, fontSize: 9, color: C.textDim, textAlign: "center" }}>NO SATELLITES IN REGISTRY</div>
-                : sats.map(s => <FuelBar key={s.id} {...s} />)
-              }
+                : sats.map(s => <FuelBar key={s.id} {...s} />)}
             </div>
           </Panel>
-
-          {/* Maneuver Timeline */}
           <Panel title="Maneuver Timeline — Gantt Schedule" accent={C.amber}>
             <div style={{
               display: "grid", gridTemplateColumns: "80px 1fr 80px 70px 80px",
-              padding: "4px 12px", borderBottom: `1px solid ${C.border}`,
-              background: "rgba(0,0,0,0.3)",
+              padding: "4px 12px", borderBottom: `1px solid ${C.border}`, background: "rgba(0,0,0,0.3)",
             }}>
               {["SAT ID", "BURN ID", "BURN TIME", "Δv (km/s)", "STATUS"].map(h => (
                 <span key={h} style={{ fontSize: 8, color: C.textDim, letterSpacing: 1 }}>{h}</span>
@@ -615,7 +609,7 @@ export default function App() {
           </Panel>
         </div>
 
-        {/* Row 4: Satellite detail table */}
+        {/* Row 4: Constellation Registry */}
         <Panel title="Constellation Registry — Live State Vectors" tag="J2 PROPAGATED · RK4">
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 9 }}>
@@ -630,17 +624,12 @@ export default function App() {
                 {sats.length === 0
                   ? <tr><td colSpan={7} style={{ padding: 16, textAlign: "center", color: C.textDim }}>AWAITING TELEMETRY — INJECT DATA TO POPULATE</td></tr>
                   : sats.map(s => (
-                    <tr key={s.id} style={{ borderBottom: `1px solid ${C.border}`, transition: "background 0.2s" }}
+                    <tr key={s.id}
+                      onClick={() => setSelectedSat(s.id === selectedSat ? null : s.id)}
+                      style={{ borderBottom: `1px solid ${C.border}`, cursor: "pointer", background: selectedSat === s.id ? "rgba(240,165,0,0.07)" : "transparent" }}
                       onMouseEnter={e => e.currentTarget.style.background = "rgba(240,165,0,0.05)"}
-                      onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                      {[
-                        s.id,
-                        s.lat?.toFixed(3) + "°",
-                        s.lon?.toFixed(3) + "°",
-                        s.alt_km?.toFixed(1),
-                        s.fuel_kg?.toFixed(2),
-                        s.fuel_pct?.toFixed(1) + "%",
-                      ].map((val, i) => (
+                      onMouseLeave={e => e.currentTarget.style.background = selectedSat === s.id ? "rgba(240,165,0,0.07)" : "transparent"}>
+                      {[s.id, s.lat?.toFixed(3) + "°", s.lon?.toFixed(3) + "°", s.alt_km?.toFixed(1), s.fuel_kg?.toFixed(2), s.fuel_pct?.toFixed(1) + "%"].map((val, i) => (
                         <td key={i} style={{ padding: "5px 12px", color: C.text, fontFamily: "'Share Tech Mono', monospace" }}>{val}</td>
                       ))}
                       <td style={{ padding: "5px 12px" }}>
@@ -652,8 +641,7 @@ export default function App() {
                         }}>{s.status}</span>
                       </td>
                     </tr>
-                  ))
-                }
+                  ))}
               </tbody>
             </table>
           </div>
