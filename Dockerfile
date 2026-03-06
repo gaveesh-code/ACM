@@ -32,9 +32,3 @@ RUN chmod +x start.sh
 
 EXPOSE 8000
 CMD ["./start.sh"]
-```
-
-Then in PowerShell:
-```
-git add Dockerfile
-git status
