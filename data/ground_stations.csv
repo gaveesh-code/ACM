@@ -1,0 +1,7 @@
+id,name,lat,lon,min_elevation_deg,max_range_km
+GS-001,ISTRAC Bengaluru,13.03,77.52,5.0,2500
+GS-002,Svalbard Norway,78.23,15.41,5.0,2500
+GS-003,Goldstone California,35.43,-116.89,5.0,2500
+GS-004,Punta Arenas Chile,-53.15,-70.92,5.0,2500
+GS-005,IIT Delhi Ground Node,28.55,77.19,5.0,2500
+GS-006,McMurdo Antarctica,-77.85,166.67,5.0,2500
