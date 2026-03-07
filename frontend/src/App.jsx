@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
+import Globe3D from "./Globe3D";
 
 const API = "http://localhost:8000";
 
@@ -94,7 +95,6 @@ function WorldMap({ satellites, debris }) {
     const W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
 
-    // Grid
     ctx.strokeStyle = C.grid; ctx.lineWidth = 0.5;
     for (let lat = -90; lat <= 90; lat += 30) {
       const [, y] = project(lat, 0, W, H);
@@ -105,19 +105,16 @@ function WorldMap({ satellites, debris }) {
       ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
     }
 
-    // Equator
     ctx.strokeStyle = "rgba(240,165,0,0.15)"; ctx.lineWidth = 1;
     const [, eqY] = project(0, 0, W, H);
     ctx.beginPath(); ctx.moveTo(0, eqY); ctx.lineTo(W, eqY); ctx.stroke();
 
-    // Debris
     debris?.forEach(d => {
       const [x, y] = project(d[1], d[2], W, H);
       ctx.beginPath(); ctx.arc(x, y, 1, 0, Math.PI * 2);
       ctx.fillStyle = "rgba(255,100,100,0.4)"; ctx.fill();
     });
 
-    // Satellites
     satellites?.forEach(sat => {
       const [x, y] = project(sat.lat, sat.lon, W, H);
       const color = statusColor(sat.status);
@@ -129,7 +126,6 @@ function WorldMap({ satellites, debris }) {
       ctx.fillText(sat.id.replace("SAT-", ""), x + 5, y - 4);
     });
 
-    // Ground stations
     const gs = [
       [13.03, 77.52, "BLR"], [78.23, 15.41, "SVL"], [35.43, -116.89, "GLD"],
       [-53.15, -70.92, "PTA"], [28.55, 77.19, "DEL"], [-77.85, 166.67, "MCM"],
@@ -144,10 +140,10 @@ function WorldMap({ satellites, debris }) {
     });
   }, [satellites, debris]);
 
-  return <canvas ref={canvasRef} width={900} height={380} style={{ width: "100%", height: "100%", display: "block" }} />;
+  return <canvas ref={canvasRef} width={900} height={360} style={{ width: "100%", height: "100%", display: "block" }} />;
 }
 
-// ─── Bullseye Conjunction Chart ───────────────────────────────────────────────
+// ─── Bullseye Chart ───────────────────────────────────────────────────────────
 function BullseyeChart({ cdms, selectedSat }) {
   const canvasRef = useRef();
 
@@ -161,11 +157,10 @@ function BullseyeChart({ cdms, selectedSat }) {
 
     ctx.clearRect(0, 0, W, H);
 
-    // Rings: CRITICAL=red(0.1km), WARNING=yellow(5km), CAUTION=green(10km)
     const rings = [
-      { r: maxR,       color: C.green  + "33", label: "10km",   labelColor: C.green },
-      { r: maxR * 0.5, color: C.yellow + "44", label: "5km",    labelColor: C.yellow },
-      { r: maxR * 0.1, color: C.red    + "66", label: "100m",   labelColor: C.red },
+      { r: maxR,       color: C.green  + "33", labelColor: C.green,  label: "10km" },
+      { r: maxR * 0.5, color: C.yellow + "44", labelColor: C.yellow, label: "5km"  },
+      { r: maxR * 0.1, color: C.red    + "66", labelColor: C.red,    label: "100m" },
     ];
 
     rings.forEach(({ r, color, label, labelColor }) => {
@@ -176,20 +171,17 @@ function BullseyeChart({ cdms, selectedSat }) {
       ctx.fillText(label, cx + r - 26, cy - 4);
     });
 
-    // Cross hairs
     ctx.strokeStyle = C.textDim + "66"; ctx.lineWidth = 0.5;
     ctx.beginPath(); ctx.moveTo(cx, cy - maxR); ctx.lineTo(cx, cy + maxR); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(cx - maxR, cy); ctx.lineTo(cx + maxR, cy); ctx.stroke();
 
-    // Satellite at center
     ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2);
     ctx.fillStyle = C.blue; ctx.fill();
     ctx.fillStyle = C.blue; ctx.font = "9px 'Share Tech Mono', monospace";
     ctx.fillText(selectedSat || "SAT", cx + 7, cy - 7);
 
-    // Plot debris by miss distance and TCA angle
     if (cdms && cdms.length > 0) {
-      const maxDist = 10; // km
+      const maxDist = 10;
       cdms.slice(0, 20).forEach((cdm, i) => {
         const dist = Math.min(cdm.miss_distance_km, maxDist);
         const angle = (i / Math.max(cdms.length, 1)) * Math.PI * 2 - Math.PI / 2;
@@ -198,16 +190,11 @@ function BullseyeChart({ cdms, selectedSat }) {
         const y = cy + r * Math.sin(angle);
         const color = severityColor(cdm.severity);
 
-        // Glow
         const grd = ctx.createRadialGradient(x, y, 0, x, y, 6);
         grd.addColorStop(0, color + "cc"); grd.addColorStop(1, "transparent");
         ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.fillStyle = grd; ctx.fill();
+        ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
 
-        // Dot
-        ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2);
-        ctx.fillStyle = color; ctx.fill();
-
-        // Label for close ones
         if (dist < 2) {
           ctx.fillStyle = color; ctx.font = "7px 'Share Tech Mono', monospace";
           ctx.fillText(cdm.debris_id?.slice(-4), x + 4, y - 4);
@@ -215,7 +202,6 @@ function BullseyeChart({ cdms, selectedSat }) {
       });
     }
 
-    // No data message
     if (!cdms || cdms.length === 0) {
       ctx.fillStyle = C.green + "88";
       ctx.font = "10px 'Share Tech Mono', monospace";
@@ -223,7 +209,6 @@ function BullseyeChart({ cdms, selectedSat }) {
       ctx.fillText("ALL CLEAR", cx, cy + maxR + 14);
       ctx.textAlign = "left";
     }
-
   }, [cdms, selectedSat]);
 
   return <canvas ref={canvasRef} width={280} height={280} style={{ width: "100%", height: "100%", display: "block" }} />;
@@ -420,6 +405,7 @@ export default function App() {
   const [connected, setConnected] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(null);
   const [selectedSat, setSelectedSat] = useState(null);
+  const [view, setView] = useState("2d");
 
   const fetchSnapshot = useCallback(async () => {
     try {
@@ -432,13 +418,12 @@ export default function App() {
 
   usePoll(fetchSnapshot, 2000);
 
-  const stats = snapshot?.fleet_stats;
-  const sats  = snapshot?.satellites || [];
+  const stats  = snapshot?.fleet_stats;
+  const sats   = snapshot?.satellites || [];
   const debris = snapshot?.debris_cloud || [];
-  const cdms  = snapshot?.cdm_warnings || [];
+  const cdms   = snapshot?.cdm_warnings || [];
   const timeline = snapshot?.maneuver_timeline || [];
 
-  // Filter CDMs for selected satellite (bullseye)
   const bullseyeCdms = selectedSat
     ? cdms.filter(c => c.satellite_id === selectedSat)
     : cdms;
@@ -499,9 +484,29 @@ export default function App() {
       {/* Main Grid */}
       <div style={{ padding: 12, display: "grid", gap: 10 }}>
 
-        {/* Row 1: Map */}
-        <Panel title="Ground Track — Mercator Projection" tag="ECI → GEO CONVERTED" style={{ height: 420 }}>
-          <WorldMap satellites={sats} debris={debris} />
+        {/* Row 1: Map with 2D/3D toggle */}
+        <Panel
+          title={view === "2d" ? "Ground Track — Mercator Projection" : "3D Orbital View — ECI Frame"}
+          tag={view === "2d" ? "ECI → GEO CONVERTED" : "DRAG TO ROTATE · SCROLL TO ZOOM"}
+          style={{ height: 420 }}
+          accent={view === "3d" ? C.blue : C.amber}
+        >
+          <div style={{ display: "flex", gap: 8, padding: "6px 12px", borderBottom: `1px solid ${C.border}` }}>
+            {["2d", "3d"].map(v => (
+              <button key={v} onClick={() => setView(v)} style={{
+                background: view === v ? C.amber : "transparent",
+                color: view === v ? C.bg : C.textDim,
+                border: `1px solid ${view === v ? C.amber : C.border}`,
+                padding: "3px 14px", fontSize: 9, cursor: "pointer",
+                fontFamily: "'Share Tech Mono', monospace",
+                letterSpacing: 2, borderRadius: 2,
+              }}>{v === "2d" ? "2D MAP" : "3D GLOBE"}</button>
+            ))}
+          </div>
+          {view === "2d"
+            ? <WorldMap satellites={sats} debris={debris} />
+            : <Globe3D satellites={sats} debris={debris} />
+          }
         </Panel>
 
         {/* Row 2: Stats + CDMs + Bullseye */}
