@@ -4,8 +4,10 @@ import os
 DB_PATH = os.path.join(os.path.dirname(__file__), "acm.db")
 
 def get_connection():
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False, timeout=30)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")  # Prevents database locked errors
+    conn.execute("PRAGMA busy_timeout=30000")
     return conn
 
 def init_db():
