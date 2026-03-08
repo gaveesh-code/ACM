@@ -172,7 +172,7 @@ async def simulate_step(payload: SimStepRequest):
 
             sat_state = [sat["x"], sat["y"], sat["z"], sat["vx"], sat["vy"], sat["vz"]]
             slot_state = [sat["slot_x"], sat["slot_y"], sat["slot_z"],
-                          sat["vx"], sat["vy"], sat["vz"]]  # same velocity target
+                          sat["vx"], sat["vy"], sat["vz"]]
 
             burn = calculate_recovery_burn(sat_state, slot_state)
             dv = burn["dv_eci_kms"]
@@ -249,8 +249,8 @@ async def simulate_step(payload: SimStepRequest):
                     f"miss={cdm['miss_distance_km']*1000:.1f}m"
                 )
 
-    # ─── Step 6: Advance sim time ──────────────────────────────────────────────
-    set_sim_time(new_time_str)
+    # ─── Step 6: Advance sim time using existing connection ───────────────────
+    cursor.execute("UPDATE sim_state SET value=? WHERE key='current_time'", (new_time_str,))
     conn.commit()
     conn.close()
 
